@@ -9,8 +9,8 @@ var jsyaml = require('js-yaml');
 var fs = require('fs');
 var cors = require('cors');
 
-var port = (process.env.PORT || 10080);
-var securePort = (process.env.SECURE_PORT || 10043)
+var port = (process.env.PORT || 10081);
+var securePort = (process.env.SECURE_PORT || 10044)
 var app = express();
 
 app.enable('trust proxy');
