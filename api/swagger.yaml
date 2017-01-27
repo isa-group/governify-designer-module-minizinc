@@ -1,0 +1,553 @@
+---
+swagger: "2.0"
+info:
+  description: "This module contains the basic infrastructure to manage Service Level\
+    \ Agreements. It offers support to analyze SLAs, providing a variety of document\
+    \ operations as consistency, compliance, dead terms, etc."
+  version: "1.0.0"
+  title: "Agreement Module"
+basePath: "/module-minizinc"
+schemes:
+- "https"
+produces:
+- "application/json"
+- "text/plain"
+paths:
+  /api/v2:
+    get:
+      tags:
+      - "Manifest"
+      description: "This endpoint returns the agreement module manifest.\n"
+      operationId: "apiV2GET"
+      parameters: []
+      responses:
+        200:
+          description: "The agreement module manifest in JSON format"
+          schema:
+            $ref: "#/definitions/ModuleManifest"
+      x-swagger-router-controller: "Manifest"
+  /api/v2/models:
+    get:
+      tags:
+      - "Manifest"
+      description: "This endpoint returns a list containing all models supported by\
+        \ the agreement module.\n"
+      operationId: "apiV2ModelsGET"
+      parameters: []
+      responses:
+        200:
+          description: "List containing the models supported by the agreement module\
+            \ in JSON format."
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/ModelManifest"
+      x-swagger-router-controller: "Manifest"
+  /api/v2/models/{modelId}:
+    get:
+      tags:
+      - "Manifest"
+      description: "This endpoint returns the model manifest indentified by **modelId**.\n"
+      operationId: "apiV2ModelsModelIdGET"
+      parameters:
+      - name: "modelId"
+        in: "path"
+        description: "Can be **template**, **offer** or **agreement**"
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "The model manifest in JSON format"
+          schema:
+            $ref: "#/definitions/ModelManifest"
+      x-swagger-router-controller: "Manifest"
+  /api/v2/models/{modelId}/operations:
+    get:
+      tags:
+      - "Operation"
+      description: "This endpoint returns a list containing all operations supported\
+        \ by this model.\n"
+      operationId: "apiV2ModelsModelIdOperationsGET"
+      parameters:
+      - name: "modelId"
+        in: "path"
+        description: "Can be **template**, **offer** or **agreement**"
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "List containing the operations supported by this model in\
+            \ JSON format"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/Operation"
+      x-swagger-router-controller: "Operation"
+  /api/v2/models/{modelId}/operations/{operationId}:
+    get:
+      tags:
+      - "Operation"
+      description: "This endpoint returns the operation identified by *operationId*.\n"
+      operationId: "apiV2ModelsModelIdOperationsOperationIdGET"
+      parameters:
+      - name: "modelId"
+        in: "path"
+        description: "Can be **template**, **offer** or **agreement**"
+        required: true
+        type: "string"
+      - name: "operationId"
+        in: "path"
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "Operation supported by this model in JSON format"
+          schema:
+            $ref: "#/definitions/Operation"
+      x-swagger-router-controller: "Operation"
+    post:
+      tags:
+      - "Operation"
+      description: "This endpoint returns the result of executing this operation.\n"
+      operationId: "apiV2ModelsModelIdOperationsOperationIdPOST"
+      parameters:
+      - name: "modelId"
+        in: "path"
+        description: "Can be **template**, **offer** or **agreement**"
+        required: true
+        type: "string"
+      - name: "operationId"
+        in: "path"
+        required: true
+        type: "string"
+      - in: "body"
+        name: "data"
+        required: true
+        schema:
+          type: "array"
+          items:
+            $ref: "#/definitions/Filedata"
+      responses:
+        200:
+          description: "AppResponse with the result"
+          schema:
+            $ref: "#/definitions/AppResponse"
+      x-swagger-router-controller: "Operation"
+  /api/v2/models/{modelId}/syntaxes:
+    get:
+      tags:
+      - "Syntax"
+      description: "This endpoint returns a list containing the syntax supported by\
+        \ this model.\n"
+      operationId: "apiV2ModelsModelIdSyntaxesGET"
+      parameters:
+      - name: "modelId"
+        in: "path"
+        description: "Can be **template**, **offer** or **agreement**"
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "List containing the syntax supported by this model in JSON\
+            \ format."
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/Syntax"
+      x-swagger-router-controller: "Syntax"
+  /api/v2/models/{modelId}/syntaxes/{syntaxId}:
+    get:
+      tags:
+      - "Syntax"
+      description: "This endpoint returns the syntax identified by *syntaxId*."
+      operationId: "apiV2ModelsModelIdSyntaxesSyntaxIdGET"
+      parameters:
+      - name: "modelId"
+        in: "path"
+        description: "Can be **template**, **offer** or **agreement**"
+        required: true
+        type: "string"
+      - name: "syntaxId"
+        in: "path"
+        description: "Can be **iagree**, **json** or **yaml**"
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "Syntax in JSON format."
+          schema:
+            $ref: "#/definitions/Syntax"
+      x-swagger-router-controller: "Syntax"
+  /api/v2/models/{modelId}/syntaxes/{syntaxId}/check:
+    post:
+      tags:
+      - "Syntax"
+      description: "This endpoint returns whether the syntax of this model is valid\
+        \ or not.\n"
+      operationId: "apiV2ModelsModelIdSyntaxesSyntaxIdCheckPOST"
+      parameters:
+      - name: "modelId"
+        in: "path"
+        description: "Can be **template**, **offer** or **agreement**"
+        required: true
+        type: "string"
+      - name: "syntaxId"
+        in: "path"
+        description: "Can be **iagree**, **json** or **yaml**"
+        required: true
+        type: "string"
+      - in: "body"
+        name: "data"
+        required: true
+        schema:
+          $ref: "#/definitions/Filedata"
+      responses:
+        200:
+          description: "AppResponse"
+          schema:
+            $ref: "#/definitions/AppResponse"
+      x-swagger-router-controller: "Syntax"
+  /api/v2/models/{modelId}/syntaxes/{syntaxId}/mode:
+    get:
+      tags:
+      - "Syntax"
+      description: "This endpoint returns the mode of this syntax.\n"
+      operationId: "apiV2ModelsModelIdSyntaxesSyntaxIdModeGET"
+      parameters:
+      - name: "modelId"
+        in: "path"
+        description: "Can be **template**, **offer** or **agreement**"
+        required: true
+        type: "string"
+      - name: "syntaxId"
+        in: "path"
+        description: "Can be **iagree**, **json** or **yaml**"
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "Mode of this syntax"
+          schema:
+            type: "string"
+      x-swagger-router-controller: "Syntax"
+  /api/v2/models/{modelId}/syntaxes/{syntaxId}/theme:
+    get:
+      tags:
+      - "Syntax"
+      description: "This endpoint returns the theme of this syntax.\n"
+      operationId: "apiV2ModelsModelIdSyntaxesSyntaxIdThemeGET"
+      parameters:
+      - name: "modelId"
+        in: "path"
+        description: "Can be **template**, **offer** or **agreement**"
+        required: true
+        type: "string"
+      - name: "syntaxId"
+        in: "path"
+        description: "Can be **iagree**, **json** or **yaml**"
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "Theme of this syntax"
+          schema:
+            type: "string"
+      x-swagger-router-controller: "Syntax"
+  /api/v2/models/{modelId}/syntaxes/{srcSyntaxId}/translate/{desSyntaxId}:
+    post:
+      tags:
+      - "Syntax"
+      description: "This endpoint returns the result of converting from the current\
+        \ syntax to another supported syntax.\n"
+      operationId: "apiV2ModelsModelIdSyntaxesSyntaxIdTranslatePOST"
+      parameters:
+      - name: "modelId"
+        in: "path"
+        description: "Can be **template**, **offer** or **agreement**"
+        required: true
+        type: "string"
+      - name: "srcSyntaxId"
+        in: "path"
+        description: "Source syntax"
+        required: true
+        type: "string"
+      - name: "desSyntaxId"
+        in: "path"
+        description: "Destination syntax"
+        required: true
+        type: "string"
+      - in: "body"
+        name: "data"
+        required: true
+        schema:
+          $ref: "#/definitions/Filedata"
+      responses:
+        200:
+          description: "AppResponse with the result of the conversion"
+          schema:
+            $ref: "#/definitions/AppResponse"
+      x-swagger-router-controller: "Syntax"
+  /api/v2/models/{modelId}/tests:
+    get:
+      tags:
+      - "Test"
+      description: "This endpoint returns the model tests."
+      operationId: "apiV2ModelsModelIdTestsGET"
+      parameters:
+      - name: "modelId"
+        in: "path"
+        description: "Can be **template**, **offer** or **agreement**"
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "List containg the tests supported by this model in JSON format"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/Test"
+      x-swagger-router-controller: "Test"
+  /api/v2/models/{modelId}/tests/{testId}:
+    get:
+      tags:
+      - "Test"
+      description: "This endpoint returns the model test identified by **testId**."
+      operationId: "apiV2ModelsModelIdTestsTestIdGET"
+      parameters:
+      - name: "modelId"
+        in: "path"
+        description: "Can be **template**, **offer** or **agreement**"
+        required: true
+        type: "string"
+      - name: "testId"
+        in: "path"
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "Test description in JSON format"
+          schema:
+            $ref: "#/definitions/Test"
+      x-swagger-router-controller: "Test"
+    post:
+      tags:
+      - "Test"
+      description: "This endpoint returns the result of executing this test.\n"
+      operationId: "apiV2ModelsModelIdTestsTestIdPOST"
+      parameters:
+      - name: "modelId"
+        in: "path"
+        description: "Can be **template**, **offer** or **agreement**"
+        required: true
+        type: "string"
+      - name: "testId"
+        in: "path"
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "AppResponse with the result"
+          schema:
+            $ref: "#/definitions/AppResponse"
+      x-swagger-router-controller: "Test"
+  /help:
+    get:
+      tags:
+      - "Help"
+      description: "This endpoint returns the help content defined for the agreement\
+        \ module.\n"
+      operationId: "helpGET"
+      parameters: []
+      responses:
+        200:
+          description: "Help content of the agreement module in JSON format."
+      x-swagger-router-controller: "Help"
+  /manifest:
+    get:
+      tags:
+      - "Manifest"
+      description: "This endpoint returns the agreement module manifest.\n"
+      operationId: "manifestGET"
+      parameters: []
+      responses:
+        200:
+          description: "The agreement module manifest in JSON format"
+          schema:
+            $ref: "#/definitions/ModuleManifest"
+      x-swagger-router-controller: "Manifest"
+  /version:
+    get:
+      tags:
+      - "Manifest"
+      description: "This endpoint returns the agreement module version.\n"
+      operationId: "versionGET"
+      parameters: []
+      responses:
+        200:
+          description: "The agreement module version"
+          schema:
+            type: "string"
+      x-swagger-router-controller: "Manifest"
+definitions:
+  ModuleManifest:
+    type: "object"
+    properties:
+      id:
+        type: "string"
+        description: "Unique identifier representing the module."
+      title:
+        type: "string"
+        description: "Title of the module."
+      description:
+        type: "string"
+        description: "Description of the module."
+      apiVersion:
+        type: "string"
+        description: "Version of module API."
+      helpUri:
+        type: "string"
+        description: "Help URI of module."
+      models:
+        type: "array"
+        description: "List containing the models supported by this module."
+        items:
+          $ref: "#/definitions/ModelManifest"
+  ModelManifest:
+    type: "object"
+    properties:
+      id:
+        type: "string"
+        description: "Unique identifier representing the model supported by the module."
+      extension:
+        type: "string"
+        description: "Extension of the files belonging to this model."
+      name:
+        type: "string"
+        description: "Name of the model."
+      syntaxes:
+        type: "array"
+        description: "List containing the syntax supported by this model."
+        items:
+          $ref: "#/definitions/Syntax"
+      operations:
+        type: "array"
+        description: "List containing the operations supported by this model."
+        items:
+          $ref: "#/definitions/Operation"
+  Syntax:
+    type: "object"
+    properties:
+      id:
+        type: "string"
+        description: "Identifier of this syntax."
+      readOnly:
+        type: "boolean"
+        description: "Indicates whether the documents in this syntax are read-only\
+          \ or not."
+      syntaxCheck:
+        type: boolean
+        description: Check syntax activated or not.
+      editorModeId:
+        type: string
+        description: Mode of Ace editor
+      editorModeURI:
+        type: string
+        description: URI reference the js mode template
+      editorThemeId:
+        type: string
+        description: Theme of Ace editor
+      editorThemeURI:
+        type: string
+        description: URI reference the js theme template
+    description: "Syntax supported by the model."
+  Operation:
+    type: "object"
+    properties:
+      id:
+        type: "string"
+        description: "Unique identifier representing this operation, i.e. \"checkValidity\""
+      name:
+        type: "string"
+        description: "Name of this operation, i.e. \"Check validity\""
+      description:
+        type: "string"
+        description: "Description of this operation, i.e. \"Check if document is valid.\""
+      type:
+        type: "string"
+        description: "Type of the operation. Can be \"simple\", \"requireFile\" or\
+          \ \"createFile\""
+      config:
+        $ref: "#/definitions/Config"
+    description: "Operation supported by the model."
+  AppResponse:
+    type: "object"
+    properties:
+      status:
+        type: "string"
+        description: "Status of the response."
+        enum:
+        - "OK"
+        - "OK_PROBLEMS"
+        - "ERROR"
+        - "SESSION_ERROR"
+      message:
+        type: "string"
+        description: "Message of the response."
+      data:
+        type: "string"
+        description: "Attached data to the response."
+      annotations:
+        type: "array"
+        items:
+          $ref: "#/definitions/AppAnnotation"
+    description: "Application response."
+  AppAnnotation:
+    type: "object"
+    properties:
+      type:
+        type: "string"
+        description: "Severity of the annotation."
+        enum:
+        - "INFO"
+        - "WARNING"
+        - "ERROR"
+        - "FATAL"
+      row:
+        type: "integer"
+        description: "Annotation line."
+      column:
+        type: "integer"
+        description: "Annotation column."
+      text:
+        type: "string"
+        description: "Annotation message."
+    description: "Application annotations."
+  Test:
+    type: "object"
+    properties:
+      id:
+        type: "string"
+      description:
+        type: "string"
+      operationURI:
+        type: "string"
+      operationMethod:
+        type: "string"
+      parameters:
+        type: "string"
+      results:
+        type: "array"
+        items:
+          $ref: "#/definitions/AppResponse"
+  Filedata:
+    type: "object"
+    properties:
+      fileUri:
+        type: "string"
+      content:
+        type: "string"
+  Config:
+    type: "object"
+    properties:
+      filter:
+        type: "string"

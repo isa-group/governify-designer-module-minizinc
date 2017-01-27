@@ -1,0 +1,1 @@
+# Minizinc module
