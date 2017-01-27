@@ -22,7 +22,7 @@ module.exports = {
                 console.error(e);
             }
             const exec = require('child_process').exec;
-            const docker = exec('docker run --rm -t -v "' + __dirname + '/' + folderName + '":/home -w /home feserafim/minizinc bash -c "mzn2fzn ' + fileName + '.mzn && fzn-gecode ' + fileName + '.fzn"', (error, stdout, stderr) => {
+            const docker = exec('docker run --rm -t -v "' + __dirname + '/' + folderName + '":/home -w /home isagroup/minizinc bash -c "mzn2fzn ' + fileName + '.mzn && fzn-gecode ' + fileName + '.fzn"', (error, stdout, stderr) => {
                 if (error) {
                     var e = {};
                     e.type = "Error";
