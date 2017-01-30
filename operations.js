@@ -22,17 +22,18 @@ module.exports = {
                 console.error(e);
             }
             const exec = require('child_process').exec;
-            const docker = exec('docker run --rm -t -v "' + __dirname + '/' + folderName + '":/home -w /home isagroup/minizinc bash -c "mzn2fzn ' + fileName + '.mzn && fzn-gecode ' + fileName + '.fzn"', (error, stdout, stderr) => {
+            exec('docker run --rm -t -v "' + __dirname + '/' + folderName + '":/home -w /home isagroup/minizinc bash -c "mzn2fzn ' + fileName + '.mzn && fzn-gecode ' + fileName + '.fzn"', (error, stdout, stderr) => {
                 if (error) {
                     var e = {};
                     e.type = "Error";
                     e.message = error;
                     res.send(e);
                     console.error(e);
+                } else {
+                    res.send(new responseModel('OK', "<pre>" + stdout + "</pre>", data, null));
+                    console.log("CSP response:\n", stdout);
+                    console.log("Minizinc execution has finished");
                 }
-                res.send(new responseModel('OK', "<pre>" + stdout + "</pre>", data, null));
-                console.log("CSP response:\n", stdout);
-                console.log("Minizinc execution has finished");
             });
         });
     },
