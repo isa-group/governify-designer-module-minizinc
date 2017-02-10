@@ -1,13 +1,13 @@
 id: minizinc-module
 title: Minizinc Designer Module
 description: >-
-  This is a designer module to describe CSP on Minizinc.
+  This is a designer module to describe CSP using Minizinc, a free and open-source constraint modeling language.
 apiVersion: '2'
 helpUri: /statics/help.html
 models:
-  - id: csp
-    extension: mzn
-    name: Minizinc
+  - id: mzn
+    extension: csp
+    name: CSP
     syntaxes:
       - id: mzn
         readOnly: false
@@ -16,6 +16,20 @@ models:
         editorThemeId: ace/theme/yaml
         editorThemeURI: theme-yaml.js
         syntaxCheck: false
+      - id: yaml
+        readOnly: false
+        editorModeId: ace/mode/yaml
+        editorModeURI: mode-yaml.js
+        editorThemeId: ace/theme/yaml
+        editorThemeURI: theme-yaml.js
+        syntaxCheck: true
+      - id: json
+        readOnly: false
+        editorModeId: ace/mode/json
+        editorModeURI: mode-json.js
+        editorThemeId: ace/theme/json
+        editorThemeURI: theme-json.js
+        syntaxCheck: true
 #    operations: []
 #      - id: update
 #        name: Update
