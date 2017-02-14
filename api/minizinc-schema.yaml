@@ -1,0 +1,111 @@
+---
+# CSPModel structure
+variables:
+  - id: ""
+  	type: ""
+  	range:
+      id: ""
+      type: ""
+      domain: ""
+    expression: ""
+    dvar: #boolean: variables in an OPL application are decision variables (dvar).
+constraints:
+	- id: name
+  	expression: ""
+ranges:
+  - id: 
+  	type: ""
+    domain: ""
+objectiveFunction:
+	minimize: false
+  expression: ""
+useCP: #boolean
+
+---
+# ##############################
+# FlatZinc model consists of:
+#   1. zero or more external predicate declarations  (not consider, this is a way to declare functions) 
+#   2. zero or more parameter declarations;
+#   3. zero or more variable declarations;
+#   4. zero or more constraints;
+#   5. a solve goal
+# ##############################
+# Proposal:
+parameters:
+  - id: "name"
+    type: "bool|float|int|enum"
+    value: "true|0.0|0"
+    values: []
+variables:
+  - id: ""
+    range: # optional
+      min: ""
+      max: ""
+constraints:
+  - id: ""
+    expression: ""
+
+# Example: gnwt-transformation.mzn
+parameters:
+  - id: Colors
+    type: enum
+    values:
+      - RED
+      - YELLOW
+      - BLUE
+variables:
+  - id: invoicePenalty
+    type: int
+  # specifing range
+  - id: resolutionHours
+    type: int
+    range:
+      min: 0
+      max: 10
+constraints:
+  - id: Q1
+    expression: resolutionHours <= 4
+
+# Expected result
+# var int: invoicePenalty;
+# var 0..10: resolutionHours;
+# constraint resolutionHours <= 4; % Q1
+# solve satisfy;
+
+# JSON schema on YAML
+---
+type: object
+properties:
+  parameters:
+    type: object
+    properties:
+      id:
+        type: string
+      type:
+        type: string
+      value:
+        type: string
+      values:
+        type: array
+  variables:
+    type: object
+    properties:
+      id:
+        type: string
+      range:
+      	type: object
+        properties:
+        	min: 
+          	type: string
+          max: 
+          	type: string
+  constraints:
+    type: object
+    properties:
+    	id:
+      	type: string
+      expression:
+      	type: string
+  goals:
+    type: array
+    # Example: ['minimize a'], ['satisfy']
