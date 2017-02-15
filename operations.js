@@ -41,12 +41,14 @@ module.exports = {
         });
 
         Promise.all(promisesCreateFiles).then(function (goalObjs) {
-            var bashCmd = getMinizincConcatenatedCommands(goalObjs);
 
-            // Docker execution
-            require('child_process').exec('docker run --rm -t -v "' + __dirname + '/' + cspFolder + '":/home -w /home isagroup/minizinc bash -c "' + bashCmd + '"', (error, stdout, stderr) => {
+            // Get MiniZinc bash command
+            let bashCmd = getMiniZincCmd(goalObjs);
+
+            // MiniZinc execution
+            require('child_process').exec(bashCmd, (error, stdout, stderr) => {
                 if (error) {
-                    var e = {
+                    let e = {
                         type: "Error",
                         message: error
                     };
@@ -59,7 +61,7 @@ module.exports = {
                 console.log("Minizinc execution has finished");
             });
         }, function (err) {
-            var e = {
+            let e = {
                 type: "Error",
                 message: err
             };
@@ -453,7 +455,7 @@ class MinizincObjectBuilder {
 /**
  * Get MiniZinc command based on 'goalObjs' array
  */
-var getMinizincConcatenatedCommands = function (goalObjs) {
+var getMiniZincCmd = function (goalObjs) {
     var bashCmd = "";
 
     goalObjs.forEach(function (goalObj) {
