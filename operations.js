@@ -18,39 +18,46 @@ module.exports = {
 
         const goals = (mznObject.goals && mznObject.goals.length > 0) ? mznObject.goals : ['satisfy'];
 
-        var promises = [];
+        var promisesCreateFiles = [];
         goals.forEach(function (goal, index) {
-            promises.push(new Promise(function (resolve, reject) {
+            promisesCreateFiles.push(new Promise(function (resolve, reject) {
 
                 // Concatenate solve to the document
                 var mznDocumentToSolve = mznDocument + "\nsolve " + goal + ";";
 
-                // Write on file
-                var fileName = 'problem_' + index + '_' + date.getTime() + '_' + random;
+                // Create MiniZinc files
+                var fileName = 'problem_' + date.getTime() + '_' + index + '_' + random;
                 fs.writeFile(cspFolder + "/" + fileName + ".mzn", mznDocumentToSolve, function (err) {
                     if (err) {
                         reject(err);
+                    } else {
+                        resolve({
+                            goal: goal,
+                            fileName: fileName
+                        });
                     }
-                    require('child_process').exec('docker run --rm -t -v "' + __dirname + '/' + cspFolder + '":/home -w /home isagroup/minizinc bash -c "mzn2fzn ' + fileName + '.mzn && fzn-gecode ' + fileName + '.fzn | solns2out --search-complete-msg \'\' --soln-sep \'\' ' + fileName + '.ozn | grep -v \'^$\'"', (error, stdout, stderr) => {
-                        if (error) {
-                            reject(error);
-                        } else {
-                            var resMsg = "<pre>'" + goal + "' result:<br>" + stdout + "</pre>";
-                            resolve(resMsg);
-                            console.log("'" + goal + "' result:\n", stdout);
-                        }
-                    });
                 });
             }));
         });
 
-        Promise.all(promises).then(function (values) {
-            var resMsg = "";
-            values.forEach(function (msg) {
-                resMsg += msg + "<br>";
+        Promise.all(promisesCreateFiles).then(function (goalObjs) {
+            var bashCmd = getMinizincConcatenatedCommands(goalObjs);
+
+            // Docker execution
+            require('child_process').exec('docker run --rm -t -v "' + __dirname + '/' + cspFolder + '":/home -w /home isagroup/minizinc bash -c "' + bashCmd + '"', (error, stdout, stderr) => {
+                if (error) {
+                    var e = {
+                        type: "Error",
+                        message: error
+                    };
+                    res.send(e);
+                    console.error(e);
+                } else {
+                    res.send(new responseModel('OK', "<pre>" + stdout + "</pre>", data, null));
+                    console.log(stdout);
+                }
+                console.log("Minizinc execution has finished");
             });
-            res.send(new responseModel('OK', resMsg, data, null));
-            console.log("Minizinc execution has finished");
         }, function (err) {
             var e = {
                 type: "Error",
@@ -442,3 +449,24 @@ class MinizincObjectBuilder {
 
     }
 }
+
+/**
+ * Get MiniZinc command based on 'goalObjs' array
+ */
+var getMinizincConcatenatedCommands = function (goalObjs) {
+    var bashCmd = "";
+
+    goalObjs.forEach(function (goalObj) {
+        if (bashCmd !== "") bashCmd += " && ";
+
+        let echoTitle = 'echo \'' + goalObj.goal + '\':';
+        let mzn2fznCmd = 'mzn2fzn ' + goalObj.fileName + '.mzn';
+        let fznGecodeCmd = 'fzn-gecode ' + goalObj.fileName + '.fzn';
+        let grepFilterBlankLines = 'grep -v \'^$\'';
+        let oznCmd = 'solns2out --search-complete-msg \'\' ' + goalObj.fileName + '.ozn | ' + grepFilterBlankLines;
+
+        bashCmd += echoTitle + ' && ' +mzn2fznCmd + ' && ' + fznGecodeCmd + ' | ' + oznCmd;
+    });
+    
+    return bashCmd;
+};
