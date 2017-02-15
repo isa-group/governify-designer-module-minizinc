@@ -4,38 +4,63 @@ const yaml = require('js-yaml');
 const request = require('request');
 const fs = require('fs');
 const path = require('path');
+const cspFolder = 'csp_files';
 
 module.exports = {
-    executeMinizinc: function (res, data) {
-        // Specify Filename
+    execute: function (res, data) {
+        console.log('Starting Minizinc execution...');
+
+        const mznObject = yaml.safeLoad(data[0].content);
+        const mznDocument = MinizincStatementBuilder.minizincDocument(mznObject);
+        // Specify minizinc file name
         const date = new Date();
         const random = Math.round(Math.random() * 1000);
-        const fileName = 'problem_' + date.getTime() + '_' + random;
-        const folderName = 'csp_files';
-        // Write on file
-        fs.writeFile(folderName + "/" + fileName + ".mzn", data[0].content, function (err) {
-            if (err) {
-                var e = {};
-                e.type = "Error";
-                e.message = err;
-                res.send(e);
-                console.error(e);
-            }
-            const exec = require('child_process').exec;
-            exec('docker run --rm -t -v "' + __dirname + '/' + folderName + '":/home -w /home isagroup/minizinc bash -c "mzn2fzn ' + fileName + '.mzn && fzn-gecode ' + fileName + '.fzn | solns2out ' + fileName + '.ozn"', (error, stdout, stderr) => {
-                if (error) {
-                    var e = {};
-                    e.type = "Error";
-                    e.message = error;
-                    res.send(e);
-                    console.error(e);
-                } else {
-                    res.send(new responseModel('OK', "<pre>" + stdout + "</pre>", data, null));
-                    console.log("CSP response:\n", stdout);
-                    console.log("Minizinc execution has finished");
-                }
-            });
+
+        const goals = (mznObject.goals && mznObject.goals.length > 0) ? mznObject.goals : ['satisfy'];
+
+        var promises = [];
+        goals.forEach(function (goal, index) {
+            promises.push(new Promise(function (resolve, reject) {
+
+                // Concatenate solve to the document
+                var mznDocumentToSolve = mznDocument + "\nsolve " + goal + ";";
+
+                // Write on file
+                var fileName = 'problem_' + index + '_' + date.getTime() + '_' + random;
+                fs.writeFile(cspFolder + "/" + fileName + ".mzn", mznDocumentToSolve, function (err) {
+                    if (err) {
+                        reject(err);
+                    }
+                    require('child_process').exec('docker run --rm -t -v "' + __dirname + '/' + cspFolder + '":/home -w /home isagroup/minizinc bash -c "mzn2fzn ' + fileName + '.mzn && fzn-gecode ' + fileName + '.fzn | solns2out --search-complete-msg \'\' --soln-sep \'\' ' + fileName + '.ozn | grep -v \'^$\'"', (error, stdout, stderr) => {
+                        if (error) {
+                            reject(error);
+                        } else {
+                            var resMsg = "<pre>'" + goal + "' result:<br>" + stdout + "</pre>";
+                            resolve(resMsg);
+                            console.log("'" + goal + "' result:\n", stdout);
+                        }
+                    });
+                });
+            }));
         });
+
+        Promise.all(promises).then(function (values) {
+            var resMsg = "";
+            values.forEach(function (msg) {
+                resMsg += msg + "<br>";
+            });
+            res.send(new responseModel('OK', resMsg, data, null));
+            console.log("Minizinc execution has finished");
+        }, function (err) {
+            var e = {
+                type: "Error",
+                message: err
+            };
+            res.send(e);
+            console.error(e);
+            console.log("Minizinc execution has finished");
+        });
+
     },
     check: function (syntax, res, data) {
         switch (syntax) {
@@ -156,8 +181,10 @@ class MinizincStatementBuilder {
                 mznData += MinizincStatementBuilder.constraint(constraint);
             });
         }
-
-        mznData += "\nsolve satisfy;"
+        // Goals
+        if (mznObject.goals) {
+            mznData += MinizincStatementBuilder.goals(mznObject.goals);
+        }
 
         return mznData;
     }
@@ -205,6 +232,13 @@ class MinizincStatementBuilder {
     }
 
     /**
+     * Returns a "goals" statement Minizinc statement from a constraint object.
+     */
+    static goals(mznGoalsObject) {
+        return "% goals: '" + mznGoalsObject.join(", ") + "'\n";
+    }
+
+    /**
      * Returns a "commentary" Minizinc statement from a string.
      */
     static commentary(c) {
@@ -225,9 +259,10 @@ class MinizincObjectBuilder {
     /**
      * Build Minizinc object from a string document.
      */
-    static minizincObject (mznDocument) {
+    static minizincObject(mznDocument) {
         var mznObject = {};
-        var isEnum = false;  var enumStatements = "";
+        var isEnum = false;
+        var enumStatements = "";
         mznDocument.split('\n').forEach(function (line) {
 
             line = line.trim();
@@ -236,7 +271,7 @@ class MinizincObjectBuilder {
                 MinizincObjectBuilder.var(line, mznObject);
             } else if (line.startsWith('constraint ') && !isEnum) {
                 MinizincObjectBuilder.constraint(line, mznObject);
-            } else if ((line.startsWith('float') || line.startsWith('int') || line.startsWith('bool')) && !isEnum ) {
+            } else if ((line.startsWith('float') || line.startsWith('int') || line.startsWith('bool')) && !isEnum) {
                 MinizincObjectBuilder.parameter(line, mznObject);
             } else if ((line.startsWith('set') && line.endsWith('% enum block start')) || isEnum) {
                 // Check last iteration
@@ -249,6 +284,8 @@ class MinizincObjectBuilder {
                     isEnum = true;
                     enumStatements += line + "\n";
                 }
+            } else if (line.startsWith('% goals:')) {
+                MinizincObjectBuilder.goals(line, mznObject);
             }
 
         });
@@ -380,6 +417,26 @@ class MinizincObjectBuilder {
 
         // Modifies object
         mznObject.constraints.push(constObj);
+
+        return mznObject;
+
+    }
+
+    /**
+     * Builds a goals object from Minizinc statement considering the declaration:
+     * % goals: 'satisfy', 'minimize'
+     */
+    static goals(statement, mznObject) {
+
+        // Extracts information from statement with regexp
+        var group = /^% goals:\s*[\'\"](.+)[\'\"]/.exec(statement);
+        var goals = [];
+        group[1].split(",").forEach(function (goal) {
+            goals.push(goal.trim());
+        });
+
+        // Modifies object
+        mznObject.goals = goals;
 
         return mznObject;
 

@@ -9,13 +9,6 @@ models:
     extension: csp
     name: CSP
     syntaxes:
-      - id: mzn
-        readOnly: false
-        editorModeId: ace/mode/yaml
-        editorModeURI: mode-yaml.js
-        editorThemeId: ace/theme/yaml
-        editorThemeURI: theme-yaml.js
-        syntaxCheck: false
       - id: yaml
         readOnly: false
         editorModeId: ace/mode/yaml
@@ -30,22 +23,15 @@ models:
         editorThemeId: ace/theme/json
         editorThemeURI: theme-json.js
         syntaxCheck: true
-#    operations: []
-#      - id: update
-#        name: Update
-#        description: Delete previous version of this document if exists and load it in Registry.
-#        type: requireFile
-#        config:
-#          modalTitle: Update contract
-#          modalDescription: Select a config file.
-#          filter: cfg
-#      - id: generateOAI
-#        name: Generate OAI
-#        description: Generate OAI model.
-#        type: simple
-#        config: null
+      - id: mzn
+        readOnly: false
+        editorModeId: ace/mode/yaml
+        editorModeURI: mode-yaml.js
+        editorThemeId: ace/theme/yaml
+        editorThemeURI: theme-yaml.js
+        syntaxCheck: false
     operations:
-      - id: executeMinizinc
+      - id: execute
         name: Execute
         description: Execute Minizinc CSP.
         type: simple
