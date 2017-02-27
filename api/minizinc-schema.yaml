@@ -92,6 +92,8 @@ properties:
     properties:
       id:
         type: string
+      type:
+        type: string
       range:
       	type: object
         properties:
