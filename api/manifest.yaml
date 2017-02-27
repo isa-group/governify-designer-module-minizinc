@@ -5,7 +5,7 @@ description: >-
 apiVersion: '2'
 helpUri: /statics/help.html
 models:
-  - id: mzn
+  - id: csp
     extension: csp
     name: CSP
     syntaxes:
@@ -32,6 +32,22 @@ models:
         syntaxCheck: false
     operations:
       - id: execute
+        name: Execute
+        description: Execute Minizinc CSP.
+        type: simple
+  - id: mzn
+    extension: mzn
+    name: MZN
+    syntaxes:
+      - id: mzn
+        readOnly: false
+        editorModeId: ace/mode/yaml
+        editorModeURI: mode-yaml.js
+        editorThemeId: ace/theme/yaml
+        editorThemeURI: theme-yaml.js
+        syntaxCheck: false
+    operations:
+      - id: executeDocument
         name: Execute
         description: Execute Minizinc CSP.
         type: simple

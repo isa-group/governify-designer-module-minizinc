@@ -71,6 +71,64 @@ module.exports = {
         });
 
     },
+    executeDocument: function (res, data) {
+        console.log('Starting Minizinc execution...');
+
+        var mznDocument = data[0].content;
+
+        // Specify minizinc file name
+        const date = new Date();
+        const random = Math.round(Math.random() * 1000);
+
+        var promisesCreateFiles = [];
+        promisesCreateFiles.push(new Promise(function (resolve, reject) {
+
+            // Create MiniZinc files
+            var fileName = 'problem_' + date.getTime() + '_' + random;
+            fs.writeFile(cspFolder + "/" + fileName + ".mzn", mznDocument, function (err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve({
+                        fileName: fileName
+                    });
+                }
+            });
+        }));
+
+        Promise.all(promisesCreateFiles).then(function (goalObjs) {
+
+            // Get MiniZinc bash command
+            let bashCmd = getMiniZincCmd(goalObjs, {
+                "addEchoGoal": false
+            });
+
+            // MiniZinc execution
+            require('child_process').exec(bashCmd, (error, stdout, stderr) => {
+                if (error) {
+                    let e = {
+                        type: "Error",
+                        message: error
+                    };
+                    res.send(e);
+                    console.error(e);
+                } else {
+                    res.send(new responseModel('OK', "<pre>" + stdout + "</pre>", data, null));
+                    console.log(stdout);
+                }
+                console.log("Minizinc execution has finished");
+            });
+        }, function (err) {
+            let e = {
+                type: "Error",
+                message: err
+            };
+            res.send(e);
+            console.error(e);
+            console.log("Minizinc execution has finished");
+        });
+
+    },
     check: function (syntax, res, data) {
         switch (syntax) {
             case 'yaml':
@@ -172,27 +230,29 @@ class MinizincStatementBuilder {
     static minizincDocument(mznObject) {
         var mznData = "";
 
-        // Parameters
-        if (mznObject.parameters) {
-            mznObject.parameters.forEach(function (parameter) {
-                mznData += MinizincStatementBuilder.parameter(parameter);
-            });
-        }
-        // Variables
-        if (mznObject.variables) {
-            mznObject.variables.forEach(function (variable) {
-                mznData += MinizincStatementBuilder.var(variable);
-            });
-        }
-        // Constraints
-        if (mznObject.constraints) {
-            mznObject.constraints.forEach(function (constraint) {
-                mznData += MinizincStatementBuilder.constraint(constraint);
-            });
-        }
-        // Goals
-        if (mznObject.goals) {
-            mznData += MinizincStatementBuilder.goals(mznObject.goals);
+        if (typeof mznObject === "object") {
+            // Parameters
+            if (mznObject.parameters) {
+                mznObject.parameters.forEach(function (parameter) {
+                    mznData += MinizincStatementBuilder.parameter(parameter);
+                });
+            }
+            // Variables
+            if (mznObject.variables) {
+                mznObject.variables.forEach(function (variable) {
+                    mznData += MinizincStatementBuilder.var(variable);
+                });
+            }
+            // Constraints
+            if (mznObject.constraints) {
+                mznObject.constraints.forEach(function (constraint) {
+                    mznData += MinizincStatementBuilder.constraint(constraint);
+                });
+            }
+            // Goals
+            if (mznObject.goals) {
+                mznData += MinizincStatementBuilder.goals(mznObject.goals);
+            }
         }
 
         return mznData;
@@ -455,20 +515,28 @@ class MinizincObjectBuilder {
 /**
  * Get MiniZinc command based on 'goalObjs' array
  */
-var getMiniZincCmd = function (goalObjs) {
+var getMiniZincCmd = function (goalObjs, options) {
     var bashCmd = "";
 
     goalObjs.forEach(function (goalObj) {
         if (bashCmd !== "") bashCmd += " && ";
 
-        let echoTitle = 'echo \'' + goalObj.goal + '\':';
-        let mzn2fznCmd = 'mzn2fzn ' + goalObj.fileName + '.mzn';
-        let fznGecodeCmd = 'fzn-gecode ' + goalObj.fileName + '.fzn';
-        let grepFilterBlankLines = 'grep -v \'^$\'';
-        let oznCmd = 'solns2out --search-complete-msg \'\' ' + goalObj.fileName + '.ozn | ' + grepFilterBlankLines;
+        var echoTitle = 'echo \'' + goalObj.goal + ':\'';
+        if (options && typeof options === "object" && "addEchoGoal" in options && options["addEchoGoal"] === false)
+            echoTitle = '';
 
-        bashCmd += echoTitle + ' && ' +mzn2fznCmd + ' && ' + fznGecodeCmd + ' | ' + oznCmd;
+        let mzn2fznCmd = 'mzn2fzn ' + cspFolder + "/" + goalObj.fileName + '.mzn';
+        let fznGecodeCmd = 'fzn-gecode ' + cspFolder + "/" + goalObj.fileName + '.fzn';
+        let oznCmd = 'solns2out --search-complete-msg \'\' ' + cspFolder + "/" + goalObj.fileName + '.ozn';
+
+        let grepFilterBlankLines = 'grep -v \'^$\'';
+
+        if (echoTitle !== '') {
+            bashCmd += echoTitle + ' && ' + mzn2fznCmd + ' && ' + fznGecodeCmd + ' | ' + oznCmd + ' | ' + grepFilterBlankLines;
+        } else {
+            bashCmd += mzn2fznCmd + ' && ' + fznGecodeCmd + ' | ' + oznCmd + ' | ' + grepFilterBlankLines;
+        }
     });
-    
+
     return bashCmd;
 };
