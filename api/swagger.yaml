@@ -207,6 +207,35 @@ paths:
           schema:
             $ref: "#/definitions/AppResponse"
       x-swagger-router-controller: "Syntax"
+  /api/v2/models/{modelId}/consistency/{syntaxId}/check:
+    post:
+      tags:
+      - "Consistency"
+      description: "This endpoint returns whether the model is consistent\
+        \ or not.\n"
+      operationId: "apiV2ModelsModelIdConsistenciesConsistencyIdCheckPOST"
+      parameters:
+      - name: "modelId"
+        in: "path"
+        description: "Can be **csp** or **mzn**"
+        required: true
+        type: "string"
+      - name: "syntaxId"
+        in: "path"
+        description: "Can be **mzn**, **json** or **yaml**"
+        required: true
+        type: "string"
+      - in: "body"
+        name: "data"
+        required: true
+        schema:
+          $ref: "#/definitions/Filedata"
+      responses:
+        200:
+          description: "AppResponse"
+          schema:
+            $ref: "#/definitions/AppResponse"
+      x-swagger-router-controller: "Consistency"
   /api/v2/models/{modelId}/syntaxes/{syntaxId}/mode:
     get:
       tags:
@@ -445,6 +474,9 @@ definitions:
         description: "Indicates whether the documents in this syntax are read-only\
           \ or not."
       syntaxCheck:
+        type: boolean
+        description: Check syntax activated or not.
+      consistencyCheck:
         type: boolean
         description: Check syntax activated or not.
       editorModeId:

@@ -75,50 +75,21 @@ module.exports = {
         console.log('Starting Minizinc execution...');
 
         var mznDocument = data[0].content;
-
-        // Specify minizinc file name
-        const date = new Date();
-        const random = Math.round(Math.random() * 1000);
-
-        var promisesCreateFiles = [];
-        promisesCreateFiles.push(new Promise(function (resolve, reject) {
-
-            // Create MiniZinc files
-            var fileName = 'problem_' + date.getTime() + '_' + random;
-            fs.writeFile(cspFolder + "/" + fileName + ".mzn", mznDocument, function (err) {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve({
-                        fileName: fileName
-                    });
-                }
-            });
-        }));
-
-        Promise.all(promisesCreateFiles).then(function (goalObjs) {
-
-            // Get MiniZinc bash command
-            let bashCmd = getMiniZincCmd(goalObjs, {
-                "addEchoGoal": false
-            });
-
-            // MiniZinc execution
-            require('child_process').exec(bashCmd, (error, stdout, stderr) => {
-                if (error) {
-                    let e = {
-                        type: "Error",
-                        message: error
-                    };
-                    res.send(e);
-                    console.error(e);
-                } else {
-                    res.send(new responseModel('OK', "<pre>" + stdout + "</pre>", data, null));
-                    console.log(stdout);
-                }
-                console.log("Minizinc execution has finished");
-            });
-        }, function (err) {
+        var promises = _createMinizincFiles(mznDocument);
+        _executeMinizincPromises(promises, (error, stdout, stderr) => {
+            if (error) {
+                let e = {
+                    type: "Error",
+                    message: error
+                };
+                res.send(e);
+                console.error(e);
+            } else {
+                res.send(new responseModel('OK', "<pre>" + stdout + "</pre>", data, null));
+                console.log(stdout);
+            }
+            console.log("Minizinc execution has finished");
+        }, (err) => {
             let e = {
                 type: "Error",
                 message: err
@@ -127,7 +98,6 @@ module.exports = {
             console.error(e);
             console.log("Minizinc execution has finished");
         });
-
     },
     check: function (syntax, res, data) {
         switch (syntax) {
@@ -139,6 +109,41 @@ module.exports = {
                     var annotations = [new annotation('error', e.mark.line, e.mark.column, e.reason)];
                     res.json(new responseModel('OK_PROBLEMS', null, null, annotations));
                 }
+                break;
+        }
+    },
+    checkConsistency: function (syntax, res, data) {
+        switch (syntax) {
+            case 'mzn':
+                var mznDocument = data.content;
+                var promises = _createMinizincFiles(mznDocument);
+                _executeMinizincPromises(promises, (error, stdout, stderr) => {
+
+                    if (error || stderr) { // isConsistent
+                        var re = /.*\.mzn:([0-9]+):.*/;
+                        var annotations = [];
+                        var errorMsgs = stderr.split(/\r?\n\r?\n/);
+
+                        stderr.split(/\r?\n\r?\n/).forEach((errorMsg, index) => {
+                            var group = re.exec(errorMsg);
+                            if (group && group.length === 2) {
+                                let line = parseInt(group[1]) - 1;
+                                annotations.push(new annotation('error', line, 0, errorMsg.trim()));
+                            }
+                        });
+
+                        if (annotations.length > 0) {
+                            res.json(new responseModel('OK_PROBLEMS', null, null, annotations));
+                        } else {
+                            res.json(new responseModel('OK_PROBLEMS', null, null, [new annotation('error', 0, 0, stderr ? stderr: (typeof error === "object" && error.message)? error.message: "")]));
+                        }
+
+                    } else {
+                        res.json(new responseModel('OK', null, null, null));
+                    }
+                }, (err) => {
+                    res.json(new responseModel('OK_PROBLEMS', null, null, [new annotation('error', 0, 0, err)]));
+                });
                 break;
         }
     },
@@ -539,4 +544,59 @@ var getMiniZincCmd = function (goalObjs, options) {
     });
 
     return bashCmd;
+};
+
+var _createMinizincFiles = (mznDocument) => {
+    // Specify minizinc file name
+    const date = new Date();
+    const random = Math.round(Math.random() * 1000);
+
+    var promisesCreateFiles = [];
+    promisesCreateFiles.push(new Promise(function (resolve, reject) {
+
+        // Create MiniZinc files
+        var fileName = 'problem_' + date.getTime() + '_' + random;
+        fs.writeFile(cspFolder + "/" + fileName + ".mzn", mznDocument, function (err) {
+            if (err) {
+                reject(err);
+            } else {
+                resolve({
+                    fileName: fileName
+                });
+            }
+        });
+    }));
+    return promisesCreateFiles;
+};
+
+var _executeMinizincPromises = (promises, callback1, callback2) => {
+
+    // Remove file
+    let removeFileFromPromise = (promises) => {
+        promises.forEach((promise) => {
+            fs.unlink(cspFolder + "/" + promise.fileName + ".mzn", () => {
+                fs.unlink(cspFolder + "/" + promise.fileName + ".fzn", () => {
+                    fs.unlink(cspFolder + "/" + promise.fileName + ".ozn", () => {
+                        return true;
+                    });
+                });
+            });
+        });
+    };
+
+    Promise.all(promises).then(function (goalObjs) {
+
+        // Get MiniZinc bash command
+        let bashCmd = getMiniZincCmd(goalObjs, {
+            "addEchoGoal": false
+        });
+
+        // MiniZinc execution
+        require('child_process').exec(bashCmd, callback1);
+
+        setTimeout(() => {
+            removeFileFromPromise(goalObjs);
+        }, 5000);
+
+    }, callback2);
 };

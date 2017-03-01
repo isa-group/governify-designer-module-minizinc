@@ -46,6 +46,7 @@ models:
         editorThemeId: ace/theme/yaml
         editorThemeURI: theme-yaml.js
         syntaxCheck: false
+        consistencyCheck: true
     operations:
       - id: executeDocument
         name: Execute
