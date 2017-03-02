@@ -16,6 +16,7 @@ models:
         editorThemeId: ace/theme/yaml
         editorThemeURI: theme-yaml.js
         syntaxCheck: true
+        consistencyCheck: true
       - id: json
         readOnly: false
         editorModeId: ace/mode/json
@@ -23,6 +24,7 @@ models:
         editorThemeId: ace/theme/json
         editorThemeURI: theme-json.js
         syntaxCheck: true
+        consistencyCheck: true
       - id: mzn
         readOnly: false
         editorModeId: ace/mode/yaml
@@ -30,6 +32,7 @@ models:
         editorThemeId: ace/theme/yaml
         editorThemeURI: theme-yaml.js
         syntaxCheck: false
+        consistencyCheck: true
     operations:
       - id: execute
         name: Execute
@@ -45,7 +48,7 @@ models:
         editorModeURI: mode-yaml.js
         editorThemeId: ace/theme/yaml
         editorThemeURI: theme-yaml.js
-        syntaxCheck: false
+        syntaxCheck: true
         consistencyCheck: true
     operations:
       - id: executeDocument

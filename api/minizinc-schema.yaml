@@ -108,6 +108,8 @@ properties:
       	type: string
       expression:
       	type: string
+  goal:
+    type: string
   goals:
     type: array
     # Example: ['minimize a', 'satisfy']

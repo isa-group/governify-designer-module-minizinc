@@ -5,6 +5,7 @@ const request = require('request');
 const fs = require('fs');
 const path = require('path');
 const cspFolder = 'csp_files';
+const annotationErrorFilter = /(.*mzn:.*|MiniZinc:\s+)/g;
 
 module.exports = {
     execute: function (res, data) {
@@ -12,41 +13,14 @@ module.exports = {
 
         const mznObject = yaml.safeLoad(data[0].content);
         const mznDocument = MinizincStatementBuilder.minizincDocument(mznObject);
-        // Specify minizinc file name
-        const date = new Date();
-        const random = Math.round(Math.random() * 1000);
 
-        const goals = (mznObject.goals && mznObject.goals.length > 0) ? mznObject.goals : ['satisfy'];
+        if (mznObject.goal) {
 
-        var promisesCreateFiles = [];
-        goals.forEach(function (goal, index) {
-            promisesCreateFiles.push(new Promise(function (resolve, reject) {
+            // Execute the MiniZinc document
+            var promises = _createMinizincFiles(mznDocument);
 
-                // Concatenate solve to the document
-                var mznDocumentToSolve = mznDocument + "\nsolve " + goal + ";";
+            _executeMinizincPromises(promises, (error, stdout, stderr) => {
 
-                // Create MiniZinc files
-                var fileName = 'problem_' + date.getTime() + '_' + index + '_' + random;
-                fs.writeFile(cspFolder + "/" + fileName + ".mzn", mznDocumentToSolve, function (err) {
-                    if (err) {
-                        reject(err);
-                    } else {
-                        resolve({
-                            goal: goal,
-                            fileName: fileName
-                        });
-                    }
-                });
-            }));
-        });
-
-        Promise.all(promisesCreateFiles).then(function (goalObjs) {
-
-            // Get MiniZinc bash command
-            let bashCmd = getMiniZincCmd(goalObjs);
-
-            // MiniZinc execution
-            require('child_process').exec(bashCmd, (error, stdout, stderr) => {
                 if (error) {
                     let e = {
                         type: "Error",
@@ -59,16 +33,87 @@ module.exports = {
                     console.log(stdout);
                 }
                 console.log("Minizinc execution has finished");
+
+            }, (err) => {
+
+                let e = {
+                    type: "Error",
+                    message: err
+                };
+                res.send(e);
+                console.error(e);
+                console.log("Minizinc execution has finished");
+
             });
-        }, function (err) {
-            let e = {
-                type: "Error",
-                message: err
-            };
-            res.send(e);
-            console.error(e);
-            console.log("Minizinc execution has finished");
-        });
+
+        } else if (mznObject.goals && mznObject.goals.length > 0) {
+
+            // In this case, define different documents for each goal. MiniZinc document won't have any solve statement.
+            // Specify minizinc file name
+            const date = new Date();
+            const random = Math.round(Math.random() * 1000);
+            const goals = (mznObject.goals && mznObject.goals.length > 0) ? mznObject.goals : ['satisfy'];
+            var promisesCreateFiles = [];
+
+            goals.forEach(function (goal, index) {
+
+                promisesCreateFiles.push(new Promise(function (resolve, reject) {
+
+                    // Concatenate solve to the document
+                    var mznDocumentToSolve = mznDocument + "\nsolve " + goal + ";";
+
+                    // Create MiniZinc files
+                    var fileName = 'problem_' + date.getTime() + '_' + index + '_' + random;
+                    fs.writeFile(cspFolder + "/" + fileName + ".mzn", mznDocumentToSolve, function (err) {
+                        if (err) {
+                            reject(err);
+                        } else {
+                            resolve({
+                                goal: goal,
+                                fileName: fileName
+                            });
+                        }
+                    });
+
+                }));
+
+            });
+
+            Promise.all(promisesCreateFiles).then(function (goalObjs) {
+
+                // Get MiniZinc bash command
+                let bashCmd = getMiniZincCmd(goalObjs);
+
+                // MiniZinc execution
+                require('child_process').exec(bashCmd, (error, stdout, stderr) => {
+                    if (error) {
+                        let e = {
+                            type: "Error",
+                            message: error
+                        };
+                        res.send(e);
+                        console.error(e);
+                    } else {
+                        res.send(new responseModel('OK', "<pre>" + stdout + "</pre>", data, null));
+                        console.log(stdout);
+                    }
+                    console.log("Minizinc execution has finished");
+                });
+            }, function (err) {
+                let e = {
+                    type: "Error",
+                    message: err
+                };
+                res.send(e);
+                console.error(e);
+                console.log("Minizinc execution has finished");
+            });
+
+        } else {
+
+            res.send(new responseModel('ERROR', "<pre>Please, define a goal to solve CSP.</pre>", data, null));
+
+        }
 
     },
     executeDocument: function (res, data) {
@@ -113,97 +158,220 @@ module.exports = {
         }
     },
     checkConsistency: function (syntax, res, data) {
-        switch (syntax) {
-            case 'mzn':
-                var mznDocument = data.content;
-                var promises = _createMinizincFiles(mznDocument);
-                _executeMinizincPromises(promises, (error, stdout, stderr) => {
 
-                    if (error || stderr) { // isConsistent
-                        var re = /.*\.mzn:([0-9]+):.*/;
-                        var annotations = [];
-                        var errorMsgs = stderr.split(/\r?\n\r?\n/);
+        if (data.content === "") {
 
-                        stderr.split(/\r?\n\r?\n/).forEach((errorMsg, index) => {
-                            var group = re.exec(errorMsg);
-                            if (group && group.length === 2) {
-                                let line = parseInt(group[1]) - 1;
-                                annotations.push(new annotation('error', line, 0, errorMsg.trim()));
+            // Nothing to do
+            res.json(new responseModel('OK', null, null, null));
+
+        } else {
+
+            switch (syntax) {
+
+                case 'mzn':
+
+                    var mznDocument = data.content;
+                    var promises = _createMinizincFiles(mznDocument);
+
+                    _executeMinizincPromises(promises, (error, stdout, stderr) => {
+
+                        if (error || stderr) {
+                            var re = /.*\.mzn:([0-9]+):.*/;
+                            var annotations = [];
+                            var errorMsgs = stderr.split(/\r?\n\r?\n/);
+
+                            errorMsgs.forEach((errorMsg, index) => {
+                                var group = re.exec(errorMsg);
+                                if (group && group.length === 2) {
+                                    let line = parseInt(group[1]) - 1;
+                                    annotations.push(new annotation('error', line, 0, errorMsg.replace(annotationErrorFilter,"").trim()));
+                                }
+                            });
+
+                            if (annotations.length > 0) {
+                                res.json(new responseModel('OK_PROBLEMS', null, null, annotations));
+                            } else {
+                                res.json(new responseModel('OK_PROBLEMS', null, null, [new annotation('error', 0, 0, stderr ? stderr.replace(annotationErrorFilter,"").trim() : (typeof error === "object" && error.message) ? error.message.replace(annotationErrorFilter,"").trim() : "")]));
                             }
-                        });
 
-                        if (annotations.length > 0) {
-                            res.json(new responseModel('OK_PROBLEMS', null, null, annotations));
                         } else {
-                            res.json(new responseModel('OK_PROBLEMS', null, null, [new annotation('error', 0, 0, stderr ? stderr: (typeof error === "object" && error.message)? error.message: "")]));
+                            // isConsistent
+                            res.json(new responseModel('OK', null, null, null));
                         }
+                    }, (err) => {
+                        res.json(new responseModel('OK_PROBLEMS', null, null, [new annotation('error', 0, 0, err)]));
+                    });
+                    break;
 
-                    } else {
-                        res.json(new responseModel('OK', null, null, null));
-                    }
-                }, (err) => {
-                    res.json(new responseModel('OK_PROBLEMS', null, null, [new annotation('error', 0, 0, err)]));
-                });
-                break;
+                case 'yaml':
+
+                    var mznObject = yaml.safeLoad(data.content);
+                    var mznDocument = MinizincStatementBuilder.minizincDocument(mznObject);
+                    var promises = _createMinizincFiles(mznDocument);
+                    var mznDocumentSplitted = mznDocument.split(/\r?\n/);
+                    var yamlDocumentSplitted = data.content.split(/\r?\n/);
+
+                    _executeMinizincPromises(promises, (error, stdout, stderr) => {
+
+                        if (error || stderr) {
+                            var re = /.*\.mzn:([0-9]+):.*/;
+                            var annotations = [];
+                            var errorMsgs = stderr.split(/\r?\n\r?\n/);
+
+                            errorMsgs.forEach((errorMsg, index) => {
+                                var group = re.exec(errorMsg);
+                                if (group && group.length === 2) {
+                                    let mznStatementErrorLine = parseInt(group[1]) - 1;
+                                    let mznStatement = mznDocumentSplitted[mznStatementErrorLine];
+                                    let mznStatementObj = MinizincObjectBuilder.minizincObject(mznStatement);
+                                    let typeOfStatement = Object.keys(mznStatementObj)[0];
+                                    let statementId = (typeOfStatement === "goal") ?
+                                        mznStatementObj[typeOfStatement].id : mznStatementObj[typeOfStatement][0].id;
+
+                                    yamlDocumentSplitted.every((s, i) => {
+                                        if (s.indexOf(statementId) !== -1) {
+                                            annotations.push(new annotation('error', i, 0, errorMsg.replace(annotationErrorFilter,"").trim()));
+                                            return false;
+                                        } else {
+                                            return true;
+                                        }
+                                    });
+
+                                }
+                            });
+
+                            if (annotations.length > 0) {
+                                res.json(new responseModel('OK_PROBLEMS', null, null, annotations));
+                            } else {
+                                res.json(new responseModel('OK_PROBLEMS', null, null, [new annotation('error', 0, 0, stderr ? stderr.replace(annotationErrorFilter,"").trim() : (typeof error === "object" && error.message) ? error.message.replace(annotationErrorFilter,"").trim() : "")]));
+                            }
+
+                        } else {
+                            res.json(new responseModel('OK', null, null, null));
+                        }
+                    }, (err) => {
+                        res.json(new responseModel('OK_PROBLEMS', null, null, [new annotation('error', 0, 0, err)]));
+                    });
+                    break;
+
+                case 'json':
+
+                    var mznObject = JSON.parse(data.content);
+                    var mznDocument = MinizincStatementBuilder.minizincDocument(mznObject);
+                    var promises = _createMinizincFiles(mznDocument);
+                    var mznDocumentSplitted = mznDocument.split(/\r?\n/);
+                    var yamlDocumentSplitted = data.content.split(/\r?\n/);
+
+                    _executeMinizincPromises(promises, (error, stdout, stderr) => {
+
+                        if (error || stderr) {
+                            var re = /.*\.mzn:([0-9]+):.*/;
+                            var annotations = [];
+                            var errorMsgs = stderr.split(/\r?\n\r?\n/);
+
+                            errorMsgs.forEach((errorMsg, index) => {
+                                var group = re.exec(errorMsg);
+                                if (group && group.length === 2) {
+                                    let mznStatementErrorLine = parseInt(group[1]) - 1;
+                                    let mznStatement = mznDocumentSplitted[mznStatementErrorLine];
+                                    let mznStatementObj = MinizincObjectBuilder.minizincObject(mznStatement);
+                                    let typeOfStatement = Object.keys(mznStatementObj)[0];
+                                    let statementId = (typeOfStatement === "goal") ?
+                                        mznStatementObj[typeOfStatement].id : mznStatementObj[typeOfStatement][0].id;
+
+                                    yamlDocumentSplitted.every((s, i) => {
+                                        if (s.indexOf(statementId) !== -1) {
+                                            annotations.push(new annotation('error', i, 0, errorMsg.replace(annotationErrorFilter,"").trim()));
+                                            return false;
+                                        } else {
+                                            return true;
+                                        }
+                                    });
+
+                                }
+                            });
+
+                            if (annotations.length > 0) {
+                                res.json(new responseModel('OK_PROBLEMS', null, null, annotations));
+                            } else {
+                                res.json(new responseModel('OK_PROBLEMS', null, null, [new annotation('error', 0, 0, stderr.replace(annotationErrorFilter,"").trim() ? stderr : (typeof error === "object" && error.message) ? error.message.replace(annotationErrorFilter,"").trim() : "")]));
+                            }
+
+                        } else {
+                            res.json(new responseModel('OK', null, null, null));
+                        }
+                    }, (err) => {
+                        res.json(new responseModel('OK_PROBLEMS', null, null, [new annotation('error', 0, 0, err)]));
+                    });
+                    break;
+            }
         }
     },
     translate: function (syntaxSrc, syntaxDes, res, data) {
 
-        switch (syntaxSrc) {
-            case 'mzn':
-                if (syntaxDes === 'yaml') {
+        if (data.content === "") {
 
-                    res.json(new responseModel('OK', 'The content has been translated',
-                        yaml.safeDump(MinizincObjectBuilder.minizincObject(data.content)), []));
+            res.json(new responseModel('OK', "Nothing to translate", null, []));
 
-                } else if (syntaxDes === 'json') {
+        } else {
 
-                    res.json(new responseModel('OK', 'The content has been translated',
-                        JSON.stringify(MinizincObjectBuilder.minizincObject(data.content), null, 4), []));
+            switch (syntaxSrc) {
+                case 'mzn':
+                    if (syntaxDes === 'yaml') {
 
-                } else {
+                        res.json(new responseModel('OK', 'The content has been translated',
+                            yaml.safeDump(MinizincObjectBuilder.minizincObject(data.content)), []));
 
-                    translateCombinationError(res, syntaxDes);
+                    } else if (syntaxDes === 'json') {
 
-                }
-                break;
-            case 'json':
-                if (syntaxDes === 'yaml') {
+                        res.json(new responseModel('OK', 'The content has been translated',
+                            JSON.stringify(MinizincObjectBuilder.minizincObject(data.content), null, 4), []));
 
-                    var mznObject = JSON.parse(data.content);
-                    res.json(new responseModel('OK', 'The content has been translated', yaml.safeDump(mznObject), []));
+                    } else {
 
-                } else if (syntaxDes === 'mzn') {
+                        translateCombinationError(res, syntaxDes);
 
-                    var mznObject = JSON.parse(data.content);
-                    res.json(new responseModel('OK', 'The content has been translated', MinizincStatementBuilder.minizincDocument(mznObject), []));
+                    }
+                    break;
+                case 'json':
+                    if (syntaxDes === 'yaml') {
 
-                } else {
+                        var mznObject = JSON.parse(data.content);
+                        res.json(new responseModel('OK', 'The content has been translated', yaml.safeDump(mznObject), []));
 
-                    translateCombinationError(res, syntaxDes);
+                    } else if (syntaxDes === 'mzn') {
 
-                }
-                break;
-            case 'yaml':
-                if (syntaxDes === 'mzn') {
+                        var mznObject = JSON.parse(data.content);
+                        res.json(new responseModel('OK', 'The content has been translated', MinizincStatementBuilder.minizincDocument(mznObject), []));
 
-                    var mznObject = yaml.safeLoad(data.content, 'utf8');
-                    res.json(new responseModel('OK', 'The content has been translated',
-                        MinizincStatementBuilder.minizincDocument(mznObject), []));
+                    } else {
 
-                } else if (syntaxDes === 'json') {
+                        translateCombinationError(res, syntaxDes);
 
-                    var mznObject = yaml.safeLoad(data.content);
-                    res.json(new responseModel('OK', 'The content has been translated', JSON.stringify(mznObject, null, 4), []));
+                    }
+                    break;
+                case 'yaml':
+                    if (syntaxDes === 'mzn') {
 
-                } else {
+                        var mznObject = yaml.safeLoad(data.content, 'utf8');
+                        res.json(new responseModel('OK', 'The content has been translated',
+                            MinizincStatementBuilder.minizincDocument(mznObject), []));
 
-                    translateCombinationError(res, syntaxDes);
+                    } else if (syntaxDes === 'json') {
 
-                }
-                break;
-            default:
-                res.json(new responseModel('ERROR', "It is not possible to translate from " + syntaxSrc + " to " + syntaxDes, null, []));
+                        var mznObject = yaml.safeLoad(data.content);
+                        res.json(new responseModel('OK', 'The content has been translated', JSON.stringify(mznObject, null, 4), []));
+
+                    } else {
+
+                        translateCombinationError(res, syntaxDes);
+
+                    }
+                    break;
+                default:
+                    res.json(new responseModel('ERROR', "It is not possible to translate from " + syntaxSrc + " to " + syntaxDes, null, []));
+            }
+
         }
 
     }
@@ -254,8 +422,11 @@ class MinizincStatementBuilder {
                     mznData += MinizincStatementBuilder.constraint(constraint);
                 });
             }
-            // Goals
-            if (mznObject.goals) {
+
+            // Goal and goals
+            if (mznObject.goal) {
+                mznData += MinizincStatementBuilder.goal(mznObject.goal);
+            } else if (mznObject.goals) {
                 mznData += MinizincStatementBuilder.goals(mznObject.goals);
             }
         }
@@ -276,7 +447,7 @@ class MinizincStatementBuilder {
             typeOrRange += mznVariableObject.type;
         }
 
-        return "var " + typeOrRange + ": " + mznVariableObject.id + ";\n";
+        return "var " + typeOrRange + ": " + mznVariableObject.id + "; % " + mznVariableObject.id + "-variable\n";
     }
 
     /**
@@ -293,7 +464,7 @@ class MinizincStatementBuilder {
             });
             ret += "var " + mznParameterObject.id + "_domain: " + mznParameterObject.id + "; % enum block end\n";
         } else {
-            ret += mznParameterObject.type + ": " + mznParameterObject.id + " = " + mznParameterObject.value + ";\n";
+            ret += mznParameterObject.type + ": " + mznParameterObject.id + " = " + mznParameterObject.value + "; % " + mznParameterObject.id + "-parameter\n";
         }
         return ret;
     }
@@ -302,7 +473,14 @@ class MinizincStatementBuilder {
      * Returns a "constraint" statement Minizinc statement from a constraint object.
      */
     static constraint(mznConstraintObject) {
-        return "constraint " + mznConstraintObject.expression + "; % " + mznConstraintObject.id + "\n";
+        return "constraint " + mznConstraintObject.expression + "; % " + mznConstraintObject.id + "-constraint\n";
+    }
+
+    /**
+     * Returns a "goals" statement Minizinc statement from a constraint object.
+     */
+    static goal(goal) {
+        return "solve " + goal + "; % goal\n";
     }
 
     /**
@@ -337,17 +515,25 @@ class MinizincObjectBuilder {
         var mznObject = {};
         var isEnum = false;
         var enumStatements = "";
+
         mznDocument.split('\n').forEach(function (line) {
 
             line = line.trim();
 
             if (line.startsWith('var ') && !isEnum) {
+
                 MinizincObjectBuilder.var(line, mznObject);
+
             } else if (line.startsWith('constraint ') && !isEnum) {
+
                 MinizincObjectBuilder.constraint(line, mznObject);
+
             } else if ((line.startsWith('float') || line.startsWith('int') || line.startsWith('bool')) && !isEnum) {
+
                 MinizincObjectBuilder.parameter(line, mznObject);
+
             } else if ((line.startsWith('set') && line.endsWith('% enum block start')) || isEnum) {
+
                 // Check last iteration
                 if (line.endsWith("% enum block end")) {
                     enumStatements += line;
@@ -358,8 +544,15 @@ class MinizincObjectBuilder {
                     isEnum = true;
                     enumStatements += line + "\n";
                 }
+
             } else if (line.startsWith('% goals:')) {
+
                 MinizincObjectBuilder.goals(line, mznObject);
+
+            } else if (line.startsWith('solve ')) {
+
+                MinizincObjectBuilder.goal(line, mznObject);
+
             }
 
         });
@@ -375,6 +568,8 @@ class MinizincObjectBuilder {
     var (statement, mznObject) {
 
         if (!("variables" in mznObject)) mznObject.variables = [];
+
+        // Add variable id commentary to statement
 
         // Extracts information from statement with regexp
         var group = /^var\s(.+)\.\.(.+)\s*:\s*(.+)\s*;/.exec(statement); // with range
@@ -469,7 +664,6 @@ class MinizincObjectBuilder {
         var groupWithoutId = /^constraint\s+(.+);$/.exec(statement);
         var constObj = {};
         if (groupWithoutId) {
-            //TODO: create id for constraint
             var constNumber = 1;
             mznObject.constraints.forEach(function (constraint) {
                 var groupQ = /^Q([0-9]+)$/.exec(constraint.id);
@@ -482,7 +676,7 @@ class MinizincObjectBuilder {
                 "expression": groupWithoutId[1]
             };
         } else {
-            var groupWithId = /^constraint\s(.+);\s*\%\s*(.+)\s*/.exec(statement);
+            var groupWithId = /^constraint\s(.+);\s*\%\s*(.+)-constraint$/.exec(statement);
             constObj = {
                 "id": groupWithId[2],
                 "expression": groupWithId[1]
@@ -491,6 +685,22 @@ class MinizincObjectBuilder {
 
         // Modifies object
         mznObject.constraints.push(constObj);
+
+        return mznObject;
+
+    }
+
+    /**
+     * Builds a goal object from Minizinc statement considering the declaration:
+     * solve satisfy; % goal
+     */
+    static goal(statement, mznObject) {
+
+        // Extracts information from statement with regexp
+        var group = /^solve\s+(.+);/.exec(statement);
+
+        // Modifies object
+        mznObject.goal = group[1];
 
         return mznObject;
 
@@ -534,12 +744,15 @@ var getMiniZincCmd = function (goalObjs, options) {
         let fznGecodeCmd = 'fzn-gecode ' + cspFolder + "/" + goalObj.fileName + '.fzn';
         let oznCmd = 'solns2out --search-complete-msg \'\' ' + cspFolder + "/" + goalObj.fileName + '.ozn';
 
-        let grepFilterBlankLines = 'grep -v \'^$\'';
+        let grepFilterBlankLines = ' | grep -v \'^$\'';
+        if (/^win/.test(process.platform)) {
+            grepFilterBlankLines = '';
+        }
 
         if (echoTitle !== '') {
-            bashCmd += echoTitle + ' && ' + mzn2fznCmd + ' && ' + fznGecodeCmd + ' | ' + oznCmd + ' | ' + grepFilterBlankLines;
+            bashCmd += echoTitle + ' && ' + mzn2fznCmd + ' && ' + fznGecodeCmd + ' | ' + oznCmd + grepFilterBlankLines;
         } else {
-            bashCmd += mzn2fznCmd + ' && ' + fznGecodeCmd + ' | ' + oznCmd + ' | ' + grepFilterBlankLines;
+            bashCmd += mzn2fznCmd + ' && ' + fznGecodeCmd + ' | ' + oznCmd + grepFilterBlankLines;
         }
     });
 
