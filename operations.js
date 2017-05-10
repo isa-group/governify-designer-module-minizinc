@@ -5,7 +5,7 @@ const request = require('request');
 const fs = require('fs');
 const path = require('path');
 
-const CSPTools = require("E:\\Documents\\Coding\\CSP\\governify-csp-tools");
+const CSPTools = require("governify-csp-tools");
 const CSPModel = CSPTools.CSPModel;
 const Reasoner = CSPTools.Reasoner;
 const MinizincExecutor = CSPTools.MinizincExecutor;
