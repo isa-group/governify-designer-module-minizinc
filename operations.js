@@ -34,7 +34,7 @@ module.exports = {
                     document: document
                 });
             } else {
-                res.send(new responseModel('OK', getResponseModelCSP(stdout, document), data, null));
+                res.send(new responseModel('OK', getResponseModelCSP(stdout), data, null));
             }
         });
 
@@ -57,7 +57,7 @@ module.exports = {
                     document: document
                 });
             } else {
-                res.send(new responseModel('OK', getResponseModelCSP(stdout, document), data, null));
+                res.send(new responseModel('OK', getResponseModelCSP(stdout), data, null));
             }
         });
 
@@ -323,9 +323,6 @@ function annotation(type, row, column, text) {
     this.text = text;
 }
 
-let getResponseModelCSP = (stdout, document) => {
-    return `<pre>
-                ${stdout}
-                ${document}
-            </pre>`;
+let getResponseModelCSP = (stdout) => {
+    return '<pre>' + stdout + '</pre>';
 };
