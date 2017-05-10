@@ -1,11 +1,9 @@
 ---
 swagger: "2.0"
 info:
-  description: "This module contains the basic infrastructure to manage Service Level\
-    \ Agreements. It offers support to analyze SLAs, providing a variety of document\
-    \ operations as consistency, compliance, dead terms, etc."
+  description: "This module contains the basic infrastructure to manage solve CSP using MiniZinc language."
   version: "1.0.0"
-  title: "Agreement Module"
+  title: "MiniZinc module"
 basePath: "/module-minizinc"
 schemes:
 - "https"
@@ -52,7 +50,7 @@ paths:
       parameters:
       - name: "modelId"
         in: "path"
-        description: "Can be **template**, **offer** or **agreement**"
+        description: "Can be **csp** or **mzn**"
         required: true
         type: "string"
       responses:
@@ -71,7 +69,7 @@ paths:
       parameters:
       - name: "modelId"
         in: "path"
-        description: "Can be **template**, **offer** or **agreement**"
+        description: "Can be **csp** or **mzn**"
         required: true
         type: "string"
       responses:
@@ -92,7 +90,7 @@ paths:
       parameters:
       - name: "modelId"
         in: "path"
-        description: "Can be **template**, **offer** or **agreement**"
+        description: "Can be **csp** or **mzn**"
         required: true
         type: "string"
       - name: "operationId"
@@ -113,7 +111,7 @@ paths:
       parameters:
       - name: "modelId"
         in: "path"
-        description: "Can be **template**, **offer** or **agreement**"
+        description: "Can be **csp** or **mzn**"
         required: true
         type: "string"
       - name: "operationId"
@@ -127,6 +125,16 @@ paths:
           type: "array"
           items:
             $ref: "#/definitions/Filedata"
+      - name: "details"
+        in: "query"
+        description: "ID of the object to fetch"
+        required: false
+        type: "boolean"
+      - name: "format"
+        in: "query"
+        description: "Can be **json**"
+        required: false
+        type: "string"
       responses:
         200:
           description: "AppResponse with the result"
@@ -143,7 +151,7 @@ paths:
       parameters:
       - name: "modelId"
         in: "path"
-        description: "Can be **template**, **offer** or **agreement**"
+        description: "Can be **csp** or **mzn**"
         required: true
         type: "string"
       responses:
@@ -164,12 +172,12 @@ paths:
       parameters:
       - name: "modelId"
         in: "path"
-        description: "Can be **template**, **offer** or **agreement**"
+        description: "Can be **csp** or **mzn**"
         required: true
         type: "string"
       - name: "syntaxId"
         in: "path"
-        description: "Can be **iagree**, **json** or **yaml**"
+        description: "Can be **mzn**, **json** or **yaml**"
         required: true
         type: "string"
       responses:
@@ -188,12 +196,12 @@ paths:
       parameters:
       - name: "modelId"
         in: "path"
-        description: "Can be **template**, **offer** or **agreement**"
+        description: "Can be **csp** or **mzn**"
         required: true
         type: "string"
       - name: "syntaxId"
         in: "path"
-        description: "Can be **iagree**, **json** or **yaml**"
+        description: "Can be **mzn**, **json** or **yaml**"
         required: true
         type: "string"
       - in: "body"
@@ -245,12 +253,12 @@ paths:
       parameters:
       - name: "modelId"
         in: "path"
-        description: "Can be **template**, **offer** or **agreement**"
+        description: "Can be **csp** or **mzn**"
         required: true
         type: "string"
       - name: "syntaxId"
         in: "path"
-        description: "Can be **iagree**, **json** or **yaml**"
+        description: "Can be **mzn**, **json** or **yaml**"
         required: true
         type: "string"
       responses:
@@ -268,12 +276,12 @@ paths:
       parameters:
       - name: "modelId"
         in: "path"
-        description: "Can be **template**, **offer** or **agreement**"
+        description: "Can be **csp** or **mzn**"
         required: true
         type: "string"
       - name: "syntaxId"
         in: "path"
-        description: "Can be **iagree**, **json** or **yaml**"
+        description: "Can be **mzn**, **json** or **yaml**"
         required: true
         type: "string"
       responses:
@@ -292,7 +300,7 @@ paths:
       parameters:
       - name: "modelId"
         in: "path"
-        description: "Can be **template**, **offer** or **agreement**"
+        description: "Can be **csp** or **mzn**"
         required: true
         type: "string"
       - name: "srcSyntaxId"
@@ -325,7 +333,7 @@ paths:
       parameters:
       - name: "modelId"
         in: "path"
-        description: "Can be **template**, **offer** or **agreement**"
+        description: "Can be **csp** or **mzn**"
         required: true
         type: "string"
       responses:
@@ -345,7 +353,7 @@ paths:
       parameters:
       - name: "modelId"
         in: "path"
-        description: "Can be **template**, **offer** or **agreement**"
+        description: "Can be **csp** or **mzn**"
         required: true
         type: "string"
       - name: "testId"
@@ -366,7 +374,7 @@ paths:
       parameters:
       - name: "modelId"
         in: "path"
-        description: "Can be **template**, **offer** or **agreement**"
+        description: "Can be **csp** or **mzn**"
         required: true
         type: "string"
       - name: "testId"
