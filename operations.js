@@ -5,7 +5,7 @@ const request = require('request');
 const fs = require('fs');
 const path = require('path');
 
-const CSPTools = require("governify-csp-tools");
+const CSPTools = require("E:\\Documents\\Coding\\CSP\\governify-csp-tools");
 const CSPModel = CSPTools.CSPModel;
 const Reasoner = CSPTools.Reasoner;
 const MinizincExecutor = CSPTools.MinizincExecutor;
@@ -24,16 +24,17 @@ module.exports = {
             folder: 'csp_files'
         });
 
-        reasoner.solve(cspModel, (err, stdout, stderr, isSatisfiable) => {
+        reasoner.solve(cspModel, (err, stdout, stderr, isSatisfiable, document) => {
             if (err || (parameters && parameters.format === "json")) {
                 res.send({
                     error: err,
                     stdout: stdout,
                     stderr: stderr,
-                    isSatisfiable: isSatisfiable
+                    isSatisfiable: isSatisfiable,
+                    document: document
                 });
             } else {
-                res.send(new responseModel('OK', "<pre>" + stdout + "</pre>", data, null));
+                res.send(new responseModel('OK', getResponseModelCSP(stdout, document), data, null));
             }
         });
 
@@ -46,16 +47,17 @@ module.exports = {
             folder: 'csp_files'
         });
 
-        reasoner.solve(mznDocument, (err, stdout, stderr, isSatisfiable) => {
+        reasoner.solve(mznDocument, (err, stdout, stderr, isSatisfiable, document) => {
             if (err || (parameters && parameters.format === "json")) {
                 res.send({
                     error: err,
                     stdout: stdout,
                     stderr: stderr,
-                    isSatisfiable: isSatisfiable
+                    isSatisfiable: isSatisfiable,
+                    document: document
                 });
             } else {
-                res.send(new responseModel('OK', "<pre>" + stdout + "</pre>", data, null));
+                res.send(new responseModel('OK', getResponseModelCSP(stdout, document), data, null));
             }
         });
 
@@ -320,3 +322,10 @@ function annotation(type, row, column, text) {
     this.column = column;
     this.text = text;
 }
+
+let getResponseModelCSP = (stdout, document) => {
+    return `<pre>
+                ${stdout}
+                ${document}
+            </pre>`;
+};
