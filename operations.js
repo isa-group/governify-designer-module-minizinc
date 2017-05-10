@@ -73,6 +73,15 @@ module.exports = {
                     res.status(200).json(new responseModel('OK_PROBLEMS', null, null, annotations));
                 }
                 break;
+            case 'json':
+                try {
+                    JSON.parse(data.content, 'utf8');
+                    res.status(200).json(new responseModel('OK', null, null, null));
+                } catch (e) {
+                    var annotations = [new annotation('error', e.mark.line, e.mark.column, e.reason)];
+                    res.status(200).json(new responseModel('OK_PROBLEMS', null, null, annotations));
+                }
+                break;
         }
     },
     checkConsistency: function (syntax, res, data) {
