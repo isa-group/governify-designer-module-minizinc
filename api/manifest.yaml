@@ -48,7 +48,7 @@ models:
         editorModeURI: mode-yaml.js
         editorThemeId: ace/theme/yaml
         editorThemeURI: theme-yaml.js
-        syntaxCheck: true
+        syntaxCheck: false
         consistencyCheck: true
     operations:
       - id: executeDocument
