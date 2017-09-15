@@ -1,12 +1,13 @@
 {
-  "name": "minizinc-module",
+  "name": "governify-designer-module-minizinc",
   "version": "1.0.0",
-  "description": "This is a designer module to describe CSP on Minizinc.",
+  "description": "This is a designer module to define CSP on MiniZinc.",
   "main": "index.js",
   "keywords": [
     "minizinc",
     "csp",
-    "designer"
+    "designer",
+    "governify"
   ],
   "license": "MIT",
   "private": true,

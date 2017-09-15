@@ -4,7 +4,7 @@ info:
   description: "This module contains the basic infrastructure to manage solve CSP using MiniZinc language."
   version: "1.0.0"
   title: "MiniZinc module"
-basePath: "/module-minizinc"
+basePath: "/"
 schemes:
 - "https"
 produces:
