@@ -7,7 +7,6 @@ var https = require('https');
 var swaggerTools = require('swagger-tools');
 var jsyaml = require('js-yaml');
 var fs = require('fs');
-var cors = require('cors');
 
 var port = (process.env.PORT || 10081);
 var securePort = (process.env.SECURE_PORT || 10044);
@@ -17,7 +16,6 @@ app.enable('trust proxy');
 app.use(bodyParser.json({
   limit: '50mb'
 }));
-app.use(cors());
 
 app.use(function (req, res, next) {
   if (req.secure) {
