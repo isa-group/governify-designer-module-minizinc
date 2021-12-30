@@ -15,7 +15,7 @@
     "body-parser": "^1.15.1",
     "cors": "^2.8.4",
     "express": "^4.13.4",
-    "governify-csp-tools": "^0.3.6",
+    "governify-csp-tools": "^0.3.7",
     "js-yaml": "^3.3.0",
     "jsonlint": "^1.6.2",
     "request": "^2.74.0",
